@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>DrakiaXYZ.LiveFleaPrices</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <Version>2.0.0</Version>
+    <!-- The two lines below will set the output path for the binaries -->
+    <OutputPath>bin\$(Configuration)\$(AssemblyName)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <Configurations>Debug;Release;Package</Configurations>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Package'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Package\**" />
+    <Content Remove="Package\**" />
+    <EmbeddedResource Remove="Package\**" />
+    <None Remove="Package\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SPTarkov.Common" Version="4.0.0-pre.20251007.1604" />
+    <PackageReference Include="SPTarkov.DI" Version="4.0.0-pre.20251007.1604" />
+    <PackageReference Include="SPTarkov.Reflection" Version="4.0.0-pre.20251007.1604" />
+    <PackageReference Include="SPTarkov.Server.Core" Version="4.0.0-pre.20251007.1604" />
+  </ItemGroup>
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="xcopy /i /s /e /y &quot;$(OutDir)&quot; &quot;$(ProjectDir)..\..\SPT\user\mods\$(ProjectName)&quot;&#xD;&#xA;if $(ConfigurationName) == Package (&#xD;&#xA;  powershell.exe -ExecutionPolicy Bypass -NoProfile -NonInteractive -File $(ProjectDir)\package.ps1 -modName &quot;$(AssemblyName)&quot; -modVersion &quot;$(Version)&quot;&#xD;&#xA;)" />
+  </Target>
+
+</Project>
