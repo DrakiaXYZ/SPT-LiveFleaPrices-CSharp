@@ -16,7 +16,7 @@ using System.Reflection;
 namespace DrakiaXYZ.LiveFleaPrices;
 
 // Load right before the ragfair does, so we can set the prices first
-[Injectable(TypePriority = OnLoadOrder.RagfairCallbacks - 1)]
+[Injectable(TypePriority = OnLoadOrder.RagfairCallbacks - 2)]
 public class LiveFleaPricesMod(
 	ISptLogger<LiveFleaPricesMod> logger,
 	DatabaseService database,
