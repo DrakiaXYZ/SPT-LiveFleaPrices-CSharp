@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <OutputType>Library</OutputType>
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
     <!-- The two lines below will set the output path for the binaries -->
     <OutputPath>bin\$(Configuration)\$(AssemblyName)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -31,10 +31,10 @@
     <None Remove="Package\**" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="SPTarkov.Common" Version="4.0.0-pre.20251007.1604" />
-    <PackageReference Include="SPTarkov.DI" Version="4.0.0-pre.20251007.1604" />
-    <PackageReference Include="SPTarkov.Reflection" Version="4.0.0-pre.20251007.1604" />
-    <PackageReference Include="SPTarkov.Server.Core" Version="4.0.0-pre.20251007.1604" />
+    <PackageReference Include="SPTarkov.Common" Version="4.0.1" />
+    <PackageReference Include="SPTarkov.DI" Version="4.0.1" />
+    <PackageReference Include="SPTarkov.Reflection" Version="4.0.1" />
+    <PackageReference Include="SPTarkov.Server.Core" Version="4.0.1" />
   </ItemGroup>
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="xcopy /i /s /e /y &quot;$(OutDir)&quot; &quot;$(ProjectDir)..\..\SPT\user\mods\$(ProjectName)&quot;&#xD;&#xA;if $(ConfigurationName) == Package (&#xD;&#xA;  powershell.exe -ExecutionPolicy Bypass -NoProfile -NonInteractive -File $(ProjectDir)\package.ps1 -modName &quot;$(AssemblyName)&quot; -modVersion &quot;$(Version)&quot;&#xD;&#xA;)" />

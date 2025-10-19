@@ -10,7 +10,6 @@ using SPTarkov.Server.Core.Servers;
 using SPTarkov.Server.Core.Services;
 using SPTarkov.Server.Core.Utils;
 using SPTarkov.Server.Core.Utils.Cloners;
-using System.Diagnostics;
 using System.Reflection;
 
 namespace DrakiaXYZ.LiveFleaPrices;
@@ -50,6 +49,9 @@ public class LiveFleaPricesMod(
             logger.Error("Error loading Live Flea Prices config data. Disabling LiveFleaPrices", ex);
             return;
         }
+
+        // Disable SPT's built in flea price calculations
+        ragfairConfig.Dynamic.GenerateBaseFleaPrices.UseHandbookPrice = false;
 
         // Store a clone of the original prices table, so we can make sure things don't go too crazy
         var priceTable = database.GetTables().Templates.Prices;
@@ -92,10 +94,10 @@ public class LiveFleaPricesMod(
         var itemTable = database.GetTables().Templates.Items;
         var gameMode = config.pvePrices ? "pve" : "regular";
 
-        var pricesPath = Path.Join(configFolderPath, "prices.json");
+        var pricesPath = Path.Join(configFolderPath, $"prices-{gameMode}.json");
         Dictionary<string, int>? newPrices = null;
 
-        // Fetch the latest prices.json if we're triggered with fetch enabled, or the prices file doesn't exist
+        // Fetch the latest prices-{gameMode}.json if we're triggered with fetch enabled, or the prices file doesn't exist
         if (fetchPrices || !fileUtil.FileExists(pricesPath))
         {
             logger.Info($"[LiveFleaPrices] Fetching Flea Prices for gamemode {gameMode}...");
@@ -129,7 +131,7 @@ public class LiveFleaPricesMod(
                 if (fileUtil.FileExists(pricesPath))
                 {
                     logger.Success("[LiveFleaPrices] Falling back to existing prices file");
-                    newPrices = modHelper.GetJsonDataFromFile<Dictionary<string, int>>(configFolderPath, "prices.json");
+                    newPrices = modHelper.GetJsonDataFromFile<Dictionary<string, int>>(configFolderPath, $"prices-{gameMode}.json");
                 }
                 else
                 {
@@ -141,7 +143,7 @@ public class LiveFleaPricesMod(
         else
         {
             // Otherwise, read the file from disk
-            newPrices = modHelper.GetJsonDataFromFile<Dictionary<string, int>>(configFolderPath, "prices.json");
+            newPrices = modHelper.GetJsonDataFromFile<Dictionary<string, int>>(configFolderPath, $"prices-{gameMode}.json");
         }
 
         // Loop through the new prices file, updating all prices present
