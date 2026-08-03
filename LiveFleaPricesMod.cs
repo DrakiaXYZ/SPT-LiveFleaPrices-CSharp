@@ -1,13 +1,14 @@
-﻿using SPTarkov.DI.Annotations;
+﻿using SPTarkov.Common.Models.Logging;
+using SPTarkov.DI.Annotations;
 using SPTarkov.Server.Core.DI;
 using SPTarkov.Server.Core.Extensions;
-using SPTarkov.Server.Core.Generators;
-using SPTarkov.Server.Core.Helpers;
+using SPTarkov.Server.Core.Generators.Ragfair;
+using SPTarkov.Server.Core.Helpers.Server;
+using SPTarkov.Server.Core.Helpers.Traders;
 using SPTarkov.Server.Core.Models.Common;
 using SPTarkov.Server.Core.Models.Spt.Config;
-using SPTarkov.Server.Core.Models.Utils;
-using SPTarkov.Server.Core.Servers;
-using SPTarkov.Server.Core.Services;
+using SPTarkov.Server.Core.Models.Spt.Tables;
+using SPTarkov.Server.Core.Services.Ragfair;
 using SPTarkov.Server.Core.Utils;
 using SPTarkov.Server.Core.Utils.Cloners;
 using System.Reflection;
@@ -17,11 +18,11 @@ namespace DrakiaXYZ.LiveFleaPrices;
 // Load right before the ragfair does, so we can set the prices first
 [Injectable(TypePriority = OnLoadOrder.RagfairCallbacks - 2)]
 public class LiveFleaPricesMod(
-	ISptLogger<LiveFleaPricesMod> logger,
-	DatabaseService database,
+    ISptLogger<LiveFleaPricesMod> logger,
+    TemplateTable templateTable,
     RagfairOfferService ragfairOfferService,
     RagfairOfferGenerator ragfairOfferGenerator,
-    ConfigServer configServer,
+    RagfairConfig ragfairConfig,
     ModHelper modHelper,
     TraderHelper traderHelper,
     RagfairOfferHolder ragfairOfferHolder,
@@ -35,10 +36,8 @@ public class LiveFleaPricesMod(
 
     private string configFolderPath = Path.Join(modHelper.GetAbsolutePathToModFolder(Assembly.GetExecutingAssembly()), "config");
 
-    private readonly RagfairConfig ragfairConfig = configServer.GetConfig<RagfairConfig>();
-
-    public async Task OnLoad()
-	{
+    public async Task OnLoadAsync(CancellationToken cancellationToken)
+    {
         try
         {
             config = modHelper.GetJsonDataFromFile<Config>(configFolderPath, "config.json");
@@ -54,7 +53,7 @@ public class LiveFleaPricesMod(
         ragfairConfig.Dynamic.GenerateBaseFleaPrices.UseHandbookPrice = false;
 
         // Store a clone of the original prices table, so we can make sure things don't go too crazy
-        var priceTable = database.GetTables().Templates.Prices;
+        var priceTable = templateTable.Prices;
         originalPrices = cloner.Clone(priceTable)!;
 
         // Update prices on startup
@@ -65,7 +64,7 @@ public class LiveFleaPricesMod(
             fetchPrices = true;
         }
 
-        if (!await UpdatePrices(fetchPrices, false))
+        if (!await UpdatePrices(fetchPrices, false, cancellationToken))
         {
             return;
         }
@@ -75,10 +74,13 @@ public class LiveFleaPricesMod(
         {
             var updateTask = new Task(async () =>
             {
-                while (true)
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    Thread.Sleep(60 * 60 * 1000);
-                    await UpdatePrices(true, true);
+                    await Task.Delay(60 * 60 * 1000, cancellationToken);
+                    if (!cancellationToken.IsCancellationRequested)
+                    {
+                        await UpdatePrices(true, true, cancellationToken);
+                    }
                 }
             });
             updateTask.Start();
@@ -87,11 +89,11 @@ public class LiveFleaPricesMod(
         return;
 	}
 
-    private async Task<bool> UpdatePrices(bool fetchPrices = true, bool regenerateRagfair = false)
+    private async Task<bool> UpdatePrices(bool fetchPrices, bool regenerateRagfair, CancellationToken cancellationToken)
     {
-        var priceTable = database.GetTables().Templates.Prices;
-        var handbookTable = database.GetTables().Templates.Handbook;
-        var itemTable = database.GetTables().Templates.Items;
+        var priceTable = templateTable.Prices;
+        var handbookTable = templateTable.Handbook;
+        var itemTable = templateTable.Items;
         var gameMode = config.pvePrices ? "pve" : "regular";
 
         var pricesPath = Path.Join(configFolderPath, $"prices-{gameMode}.json");
@@ -101,7 +103,7 @@ public class LiveFleaPricesMod(
         if (fetchPrices || !fileUtil.FileExists(pricesPath))
         {
             logger.Info($"[LiveFleaPrices] Fetching Flea Prices for gamemode {gameMode}...");
-            var response = await GetWithRetries($"https://raw.githubusercontent.com/DrakiaXYZ/SPT-LiveFleaPriceDB/main/prices-{gameMode}.json", 5);
+            var response = await GetWithRetries($"https://raw.githubusercontent.com/DrakiaXYZ/SPT-LiveFleaPriceDB/main/prices-{gameMode}.json", 5, cancellationToken);
             if (response != null)
             {
                 newPrices = jsonUtil.Deserialize<Dictionary<string, int>>(response);
@@ -231,15 +233,20 @@ public class LiveFleaPricesMod(
         return true;
     }
 
-    private async Task<string?> GetWithRetries(string url, int retries)
+    private async Task<string?> GetWithRetries(string url, int retries, CancellationToken cancellationToken)
     {
         for (var i = 0; i <= retries; i++)
         {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return null;
+            }
+
             using (HttpClient client = new HttpClient())
             {
                 try
                 {
-                    return await client.GetStringAsync(url);
+                    return await client.GetStringAsync(url, cancellationToken);
                 }
                 catch (Exception e)
                 {
